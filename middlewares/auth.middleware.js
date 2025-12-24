@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const clerk = require('../config/clerk');
 const jwksClient = require('jwks-rsa');
+const User = require('../modules/users/user.model');
 
 const JWKS_URI = process.env.CLERK_JWKS_URI || 'https://api.clerk.dev/.well-known/jwks';
 const jwks = jwksClient({
@@ -29,7 +30,31 @@ module.exports = async function authMiddleware(req, res, next) {
   const token = parts[1];
 
   try {
-    // Verify token signature using JWKS
+    const localSecret = process.env.JWT_SECRET;
+    if (localSecret) {
+      try {
+        const decodedLocal = jwt.verify(token, localSecret);
+        if (decodedLocal && decodedLocal.userId) {
+          const dbUser = await User.findById(decodedLocal.userId);
+          if (!dbUser) return res.status(401).json({ message: 'Invalid or expired token' });
+
+          req.user = {
+            id: String(dbUser._id),
+            email: dbUser.email,
+            firstName: dbUser.firstName,
+            lastName: dbUser.lastName,
+            roles: dbUser.roles || decodedLocal.roles || [],
+            raw: dbUser,
+          };
+
+          return next();
+        }
+      } catch (e) {
+        // Not a local JWT (or expired). Fall through to Clerk/JWKS verification.
+      }
+    }
+
+    // Verify token signature using JWKS (Clerk session/OIDC token)
     const decoded = await new Promise((resolve, reject) => {
       jwt.verify(token, getKey, {}, (err, decoded) => {
         if (err) return reject(err);
@@ -38,7 +63,7 @@ module.exports = async function authMiddleware(req, res, next) {
     });
 
     const userId = decoded && decoded.sub;
-    if (!userId) return res.status(401).json({ message: 'Invalid token (missing sub)' });
+    if (!userId) return res.status(401).json({ message: 'Invalid token' });
 
     const user = await clerk.getUserById(userId);
 
@@ -54,7 +79,6 @@ module.exports = async function authMiddleware(req, res, next) {
       email: (user.email_addresses && user.email_addresses[0] && user.email_addresses[0].email_address) || null,
       firstName: user.first_name || null,
       lastName: user.last_name || null,
-      // both raw and normalized roles are useful
       rolesRaw: rawRoles,
       roles: Array.from(new Set(roles)),
       permissionsRaw: rawPermissions,
