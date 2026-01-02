@@ -40,7 +40,7 @@ module.exports = async function authMiddleware(req, res, next) {
 
           req.user = {
             id: String(dbUser._id),
-            email: dbUser.email,
+            username: dbUser.username,
             firstName: dbUser.firstName,
             lastName: dbUser.lastName,
             roles: dbUser.roles || decodedLocal.roles || [],
@@ -76,7 +76,7 @@ module.exports = async function authMiddleware(req, res, next) {
 
     req.user = {
       id: user.id,
-      email: (user.email_addresses && user.email_addresses[0] && user.email_addresses[0].email_address) || null,
+      username: (user.username) || (user.email_addresses && user.email_addresses[0] && user.email_addresses[0].email_address) || null,
       firstName: user.first_name || null,
       lastName: user.last_name || null,
       rolesRaw: rawRoles,

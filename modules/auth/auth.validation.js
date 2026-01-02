@@ -1,5 +1,5 @@
 const Joi = require('joi');
-const { email, password, name, pagination } = require('../../validations');
+const { email, username, password, name, pagination } = require('../../validations');
 
 const webhookSchema = Joi.object({
   type: Joi.string().required(),
@@ -9,19 +9,19 @@ const webhookSchema = Joi.object({
 const listSchema = pagination;
 
 const registerSchema = Joi.object({
-  email: email.required(),
+  username: username.required(),
   password: password.required(),
   firstName: name.required(),
   lastName: name.required(),
 });
 
 const loginSchema = Joi.object({
-  email: email.required(),
+  username: username.required(),
   password: password.required(),
 });
 
 const loginInitiateSchema = Joi.object({
-  email: email.required(),
+  username: username.required(),
   password: password.required(),
 });
 
@@ -39,11 +39,11 @@ const refreshTokenSchema = Joi.object({
 });
 
 const forgotPasswordSchema = Joi.object({
-  email: email.required(),
+  username: username.required(),
 });
 
 const resetPasswordSchema = Joi.object({
-  email: email.required(),
+  username: username.required(),
   otp: Joi.string().length(6).pattern(/^\d+$/).required(),
   password: password.required(),
 });

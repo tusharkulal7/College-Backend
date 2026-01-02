@@ -3,6 +3,11 @@ const path = require('path');
 
 const app = express();
 
+// Basic body parsers to ensure route handlers receive `req.body` even
+// if loader initialization order differs (keeps app robust).
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '10mb' }));
+app.use(express.urlencoded({ extended: false }));
+
 // Serve static files from public/uploads
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
 

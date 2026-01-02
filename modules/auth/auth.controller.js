@@ -100,7 +100,7 @@ async function forgotUserPassword(req, res) {
     const { error, value } = forgotPasswordSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.message });
 
-    const result = await forgotPassword(value.email);
+    const result = await forgotPassword(value.username);
     res.json(result);
   } catch (err) {
     console.error('Forgot password error:', err);
@@ -113,7 +113,7 @@ async function resetUserPassword(req, res) {
     const { error, value } = resetPasswordSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.message });
 
-    const result = await resetPassword(value.email, value.otp, value.password);
+    const result = await resetPassword(value.username, value.otp, value.password);
     res.json(result);
   } catch (err) {
     console.error('Reset password error:', err);

@@ -5,8 +5,12 @@ const bcrypt = require('bcrypt');
 const User = require('../users/user.model'); // Assuming user model exists
 const redisService = require('../../services/redis.service');
 
-const JWT_SECRET = process.env.JWT_SECRET;
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_change_me';
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET || 'dev_jwt_refresh_secret_change_me';
+
+if (!process.env.JWT_SECRET) {
+  console.warn('WARNING: JWT_SECRET not set. Using development default secret. Set JWT_SECRET in env for production.');
+}
 
 async function verifyWebhookSignature(body, signature, secret) {
   if (!secret) throw new Error('Webhook secret not configured');
@@ -55,7 +59,7 @@ async function comparePassword(password, hash) {
 
 function generateAccessToken(user) {
   return jwt.sign(
-    { userId: user._id, email: user.email, roles: user.roles },
+    { userId: user._id, username: user.username, roles: user.roles },
     JWT_SECRET,
     { expiresIn: '15m' }
   );
@@ -70,10 +74,10 @@ function generateRefreshToken(user) {
 }
 
 async function register(userData) {
-  const { email, password, firstName, lastName } = userData;
+  const { username, password, firstName, lastName } = userData;
 
   // Check if user exists
-  const existingUser = await User.findOne({ email });
+  const existingUser = await User.findOne({ username });
   if (existingUser) {
     throw new Error('User already exists');
   }
@@ -83,7 +87,7 @@ async function register(userData) {
 
   // Create user
   const user = new User({
-    email,
+    username,
     password: hashedPassword,
     firstName,
     lastName,
@@ -99,7 +103,7 @@ async function register(userData) {
   return {
     user: {
       id: user._id,
-      email: user.email,
+      username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
       roles: user.roles
@@ -110,10 +114,13 @@ async function register(userData) {
 }
 
 async function login(credentials) {
-  const { email, password } = credentials;
+  if (!credentials || typeof credentials !== 'object') {
+    throw new Error('Missing credentials');
+  }
+  const { username, password } = credentials;
 
-  // Find user
-  const user = await User.findOne({ email });
+  // Find user by username
+  const user = await User.findOne({ username });
   if (!user) {
     throw new Error('Invalid credentials');
   }
@@ -131,7 +138,7 @@ async function login(credentials) {
   return {
     user: {
       id: user._id,
-      email: user.email,
+      username: user.username,
       firstName: user.firstName,
       lastName: user.lastName,
       roles: user.roles
@@ -168,46 +175,34 @@ async function logout() {
   return { message: 'Logged out successfully' };
 }
 
-async function forgotPassword(email) {
-  const user = await User.findOne({ email });
+async function forgotPassword(username) {
+  const user = await User.findOne({ username });
   if (!user) {
-    // Don't reveal if user exists
-    return { message: 'If the email exists, a reset link has been sent' };
+    return { message: 'If the username exists, a reset code has been sent' };
   }
 
-  // Generate OTP (6-digit)
   const otp = crypto.randomInt(100000, 999999).toString();
-
-  // Store OTP in Redis with 10 minutes TTL
-  await redisService.storeOTP(email, otp, 600);
-
-  // In a real app, send email with OTP
-  // For now, just log it (in production, email it)
-  console.log(`OTP for ${email}: ${otp}`);
-
-  return { message: 'If the email exists, an OTP has been sent' };
+  await redisService.storeOTP(username, otp, 600);
+  console.log(`OTP for ${username}: ${otp}`);
+  return { message: 'If the username exists, a reset code has been sent' };
 }
 
-async function resetPassword(email, otp, newPassword) {
-  // Verify OTP from Redis
-  const storedOtp = await redisService.getOTP(email);
+async function resetPassword(username, otp, newPassword) {
+  const storedOtp = await redisService.getOTP(username);
   if (!storedOtp || storedOtp !== otp) {
     throw new Error('Invalid or expired OTP');
   }
 
-  // Find user
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ username });
   if (!user) {
     throw new Error('User not found');
   }
 
-  // Update password
   const hashedPassword = await hashPassword(newPassword);
   user.password = hashedPassword;
   await user.save();
 
-  // Delete the used OTP
-  await redisService.deleteOTP(email);
+  await redisService.deleteOTP(username);
 
   return { message: 'Password reset successfully' };
 }

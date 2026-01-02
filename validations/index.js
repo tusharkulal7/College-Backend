@@ -3,6 +3,7 @@ const Joi = require('joi');
 // Basic field schemas
 const objectId = Joi.string().regex(/^[0-9a-fA-F]{24}$/);
 const email = Joi.string().email();
+const username = Joi.string().alphanum().min(3).max(50);
 const password = Joi.string().min(6);
 const name = Joi.string().min(1);
 const slug = Joi.string().min(1);
@@ -44,6 +45,7 @@ module.exports = {
   password,
   name,
   slug,
+  username,
   localizedString,
   localizedStringRequired,
   pageStatus,

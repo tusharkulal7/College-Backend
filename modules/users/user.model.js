@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const UserSchema = new Schema({
-  email: {
+  username: {
     type: String,
     required: true,
     unique: true,
@@ -40,8 +40,8 @@ const UserSchema = new Schema({
   timestamps: true
 });
 
-// Index for email lookups
-UserSchema.index({ email: 1 });
+// Index for username lookups
+UserSchema.index({ username: 1 });
 
 // Remove password from JSON output
 UserSchema.methods.toJSON = function() {
